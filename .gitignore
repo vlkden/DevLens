@@ -1,0 +1,20 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode
+DerivedData/
+xcuserdata/
+*.xcodeproj
+*.xcworkspace
+*.xcscmblueprint
+*.xccheckout
+
+# macOS
+.DS_Store
+
+# Local working notes and the pre-split originals (not part of the package)
+NOTES.md
+/APITrace.swift
+/claude-code-prompt-devlens.md
