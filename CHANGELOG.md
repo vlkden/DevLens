@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-29
+
 ### Added
 - `APITrace.Filter` and `APITrace.shared.filter`: hide requests with transport errors, HTTP 4xx/5xx, or from given hosts from the report and all exports. `snapshot()` stays unfiltered; `filteredSnapshot()` returns what the exports see. The report header shows `hidden by filter=N`.
 - `APITrace.WebViewOptions` and `APITrace.shared.webViewOptions`: choose what the WebView script does. `.resourceTiming` (default) is read-only; `.fetchAndXHRStatus` wraps `fetch`/XHR for status codes.
