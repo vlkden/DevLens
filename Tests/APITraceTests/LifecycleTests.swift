@@ -24,8 +24,31 @@ final class LifecycleTests: XCTestCase {
 
     override func tearDown() {
         APITrace.shared.stop()
+        APITrace.shared.filter = .all
         try? FileManager.default.removeItem(at: tempDir)
         super.tearDown()
+    }
+
+    func testFilterAppliesToReportAndExportsButNotSnapshot() throws {
+        APITrace.shared.start(label: "filtered")
+        // Inject records directly; the hooks are covered elsewhere.
+        let ok = req(0, "api.example.com", "/me", start: 0.1, end: 0.2)
+        let bad = req(0, "metrics.omtrdc.net", "/b/ss", start: 0.2, end: 0.3, status: nil, error: "NSURLErrorDomain#-1200")
+        APITrace.shared.queue.sync { APITrace.shared.records.append(contentsOf: [ok, bad]) }
+
+        APITrace.shared.filter.excludeTransportErrors = true
+        XCTAssertEqual(APITrace.shared.snapshot().filter { $0.isRequest }.count, 2)
+        XCTAssertEqual(APITrace.shared.filteredSnapshot().filter { $0.isRequest }.count, 1)
+        XCTAssertTrue(APITrace.shared.report().hasPrefix("APITrace report  label=filtered  requests=1  marks=1  network span=0.100s  hidden by filter=1"))
+
+        let csv = try String(contentsOf: XCTUnwrap(APITrace.shared.exportCSV()))
+        XCTAssertFalse(csv.contains("omtrdc"))
+        let json = try APITrace.TraceFile.decode(Data(contentsOf: XCTUnwrap(APITrace.shared.exportJSON())))
+        XCTAssertEqual(json.records.filter { $0.isRequest }.map { $0.host }, ["api.example.com"])
+
+        // Filter survives start(); only records are reset.
+        APITrace.shared.start(label: "again")
+        XCTAssertTrue(APITrace.shared.filter.excludeTransportErrors)
     }
 
     func testExportDirectoryIsUsed() throws {

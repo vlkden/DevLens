@@ -87,6 +87,20 @@ APITrace.shared.attach(to: webView)               // for web views created befor
 APITrace.shared.exportDirectory = someURL         // default: <Documents>/APITrace
 ```
 
+#### Filtering noise
+
+Analytics or logging endpoints that fail on a staging backend can bury the findings in `-1200` and `-999` errors. Hide them from the report and the exports without changing what is recorded:
+
+```swift
+APITrace.shared.filter.excludeTransportErrors = true          // error != nil, e.g. NSURLErrorDomain#-1200
+APITrace.shared.filter.excludeHTTPErrors = true               // status >= 400
+APITrace.shared.filter.excludedHosts = ["omtrdc.net", "demdex.net"]   // the host and its subdomains
+APITrace.shared.filter.includedHosts = ["example.com"]        // keep only these (and subdomains)
+APITrace.shared.filter = .successfulOnly                      // or .all to reset
+```
+
+Marks are never filtered, `snapshot()` always returns everything, and the report header says `hidden by filter=N` so a filtered report is never mistaken for a full one. The filter survives `start()`.
+
 The analyses behind the report are plain functions over `[APITrace.Record]`, so you can run them on any record list, live or decoded from a JSON export:
 
 ```swift

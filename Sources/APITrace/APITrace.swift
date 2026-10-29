@@ -72,6 +72,7 @@ public final class APITrace: NSObject {
     let taskMap = NSMapTable<URLSessionTask, Record>.weakToStrongObjects()
     var hooksInstalled = false
     var hookedDelegateClasses = Set<ObjectIdentifier>()
+    private var _filter = Filter.all
     private let poiLog = OSLog(subsystem: "apitrace", category: .pointsOfInterest)
 
     private override init() { super.init() }
@@ -111,9 +112,22 @@ public final class APITrace: NSObject {
         }
     }
 
-    /// Snapshot of everything recorded so far, sorted by start.
+    /// Snapshot of everything recorded so far, sorted by start. Not affected by `filter`.
     public func snapshot() -> [Record] {
         queue.sync { records.sorted { $0.start < $1.start } }
+    }
+
+    /// `snapshot()` with `filter` applied. This is what the report and the exports use.
+    public func filteredSnapshot() -> [Record] {
+        let (all, f) = queue.sync { (records.sorted { $0.start < $1.start }, _filter) }
+        return f.apply(all)
+    }
+
+    /// What the report and the exports show. Defaults to `.all`. Survives `start()`.
+    /// See `APITrace.Filter`.
+    public var filter: Filter {
+        get { queue.sync { _filter } }
+        set { queue.sync { _filter = newValue } }
     }
 
     /// Wall-clock date of the current trace's T0. All record times are relative to it.

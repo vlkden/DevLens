@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- `APITrace.Filter` and `APITrace.shared.filter`: hide requests with transport errors, HTTP 4xx/5xx, or from given hosts from the report and all exports. `snapshot()` stays unfiltered; `filteredSnapshot()` returns what the exports see. The report header shows `hidden by filter=N`.
+
 ## [0.1.0] - 2026-10-29
 
 ### Added

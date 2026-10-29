@@ -15,9 +15,12 @@ import UIKit
 
 extension APITrace {
 
-    /// Builds the text report (table of requests, marks, findings) for the current trace.
+    /// Builds the text report (table of requests, marks, findings) for the current trace,
+    /// honouring `filter`. The header shows how many requests the filter hid.
     public func report() -> String {
-        TraceExport.report(records: snapshot(), label: label)
+        let all = snapshot()
+        let shown = filter.apply(all)
+        return TraceExport.report(records: shown, label: label, hidden: all.count - shown.count)
     }
 
     /// Prints the text report to the console and returns it.
@@ -32,20 +35,20 @@ extension APITrace {
     /// - Returns: the file URL, or `nil` if serialisation or writing failed.
     @discardableResult
     public func exportPerfetto() -> URL? {
-        guard let data = TraceExport.perfettoData(records: snapshot(), label: label) else { return nil }
+        guard let data = TraceExport.perfettoData(records: filteredSnapshot(), label: label) else { return nil }
         return write(data, ext: "json")
     }
 
     /// Writes one CSV row per record. See `TraceExport.csvHeader` for the columns.
     @discardableResult
     public func exportCSV() -> URL? {
-        write(TraceExport.csv(records: snapshot()).data(using: .utf8) ?? Data(), ext: "csv")
+        write(TraceExport.csv(records: filteredSnapshot()).data(using: .utf8) ?? Data(), ext: "csv")
     }
 
-    /// Writes the raw records as JSON (`TraceFile`). This is the input for `trace-compare`.
+    /// Writes the records as JSON (`TraceFile`), honouring `filter`. This is the input for `trace-compare`.
     @discardableResult
     public func exportJSON() -> URL? {
-        let file = TraceFile(label: label, startedAt: startDate, records: snapshot())
+        let file = TraceFile(label: label, startedAt: startDate, records: filteredSnapshot())
         guard let data = try? file.encoded() else { return nil }
         return write(data, ext: "records.json")
     }
@@ -86,13 +89,14 @@ public enum TraceExport {
     public typealias Record = APITrace.Record
 
     /// Text report: header, request table, marks, findings.
-    public static func report(records all: [Record], label: String) -> String {
+    /// - Parameter hidden: number of requests a filter removed before this call; shown in the header when non-zero.
+    public static func report(records all: [Record], label: String, hidden: Int = 0) -> String {
         let reqs = all.filter { $0.isRequest }
         let marks = all.filter { !$0.isRequest }
         var out: [String] = []
         let spanEnd = reqs.compactMap { $0.end }.max() ?? 0
         let spanStart = reqs.first?.start ?? 0
-        out.append("APITrace report  label=\(label)  requests=\(reqs.count)  marks=\(marks.count)  network span=\(Format.f(spanEnd - spanStart))s")
+        out.append("APITrace report  label=\(label)  requests=\(reqs.count)  marks=\(marks.count)  network span=\(Format.f(spanEnd - spanStart))s" + (hidden > 0 ? "  hidden by filter=\(hidden)" : ""))
         out.append("")
         out.append(Format.pad("start", 7) + Format.pad("dur", 7) + Format.pad("src", 22) + Format.pad("st", 5) + Format.pad("meth", 6) + Format.pad("dns", 6) + Format.pad("tls", 6) + Format.pad("ttfb", 7) + Format.pad("dl", 6) + Format.pad("reuse", 6) + Format.pad("thr", 5) + "name")
         for r in reqs {
