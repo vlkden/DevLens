@@ -68,7 +68,7 @@ Puts every network call and every UI milestone on one timeline, in-process, with
 
 - **Every `URLSessionTask`** in the app: plain URLSession, Alamofire, React Native (`RCTNetworking` uses NSURLSession), vendor SDKs. Hooked through the ObjC runtime on the first `start()`.
 - **Per-request breakdown** from `URLSessionTaskMetrics`: DNS, connect, TLS, wait (TTFB), download, connection reuse, protocol, bytes, redirects, plus whether `resume()` was called on the main thread.
-- **WKWebView traffic** via an injected script (Resource Timing + `fetch`/XHR wrappers), because web content loads in another process where URLSession hooks never see it.
+- **WKWebView traffic** via an injected script that reads Resource Timing entries, because web content loads in another process where URLSession hooks never see it. Read-only by default; see below.
 - **UI marks** you add yourself. Each also emits an `os_signpost`, so they show up in Instruments too.
 
 ```swift
@@ -86,6 +86,16 @@ let json    = APITrace.shared.exportJSON()        // raw records, input for trac
 APITrace.shared.attach(to: webView)               // for web views created before start()
 APITrace.shared.exportDirectory = someURL         // default: <Documents>/APITrace
 ```
+
+#### WebViews
+
+With `autoAttachWebViews: true`, every `WKWebView` gets the tracing script on its first `load`. The default script only reads `PerformanceObserver` entries and never modifies page globals, so login and payment pages guarded by anti-tamper scripts keep working. It gives start, duration, DNS/TLS/TTFB and size, but not HTTP status codes. To also get status codes, opt in to wrapping `fetch` and `XMLHttpRequest`, knowing that security layers may detect it:
+
+```swift
+APITrace.shared.webViewOptions = .all        // .resourceTiming (default) or [.resourceTiming, .fetchAndXHRStatus]
+```
+
+Web views loaded through `load(_:mimeType:characterEncodingName:baseURL:)` or created before `start()` need an explicit `attach(to:)` before their first load.
 
 #### Filtering noise
 
@@ -169,7 +179,7 @@ It prints the request count delta, longest serialized chain delta, network span 
 - Still a debug tool: it swizzles system classes and keeps every request in memory. Wrap `start()` in `#if DEBUG` and never ship it enabled.
 - `URLSession.shared` is created before the hooks exist, so its requests get start, end and status via KVO but no DNS/TLS breakdown.
 - Tasks created with a completion handler do not reach the session delegate's completion callback (Foundation bypasses it). They still get metrics, and completion comes from KVO on the task state.
-- WebView cross-origin resources only expose full timing if the server sends `Timing-Allow-Origin`. You always get start, duration and, through the `fetch`/XHR wrappers, the status.
+- WebView cross-origin resources only expose full timing if the server sends `Timing-Allow-Origin`. You always get start and duration; status codes need the opt-in `fetchAndXHRStatus` option.
 - Background URLSessions use a different task class hierarchy and are not hooked.
 - Exports are written to `<Documents>/APITrace` and are never cleaned up automatically.
 

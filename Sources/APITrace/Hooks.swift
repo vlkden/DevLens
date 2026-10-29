@@ -14,12 +14,16 @@ import ObjectiveC.runtime
 extension APITrace {
 
     func installHooksIfNeeded(autoAttachWebViews: Bool) {
-        guard !hooksInstalled else { return }
-        hooksInstalled = true
-        hookTaskResume()
-        hookSessionFactory()
+        if !hooksInstalled {
+            hooksInstalled = true
+            hookTaskResume()
+            hookSessionFactory()
+        }
         #if canImport(WebKit)
-        if autoAttachWebViews { hookWebViewInit() }
+        if autoAttachWebViews, !webViewHookInstalled {
+            webViewHookInstalled = true
+            hookWebViewLoad()
+        }
         #endif
     }
 

@@ -71,6 +71,7 @@ public final class APITrace: NSObject {
     let queue = DispatchQueue(label: "apitrace.records")
     let taskMap = NSMapTable<URLSessionTask, Record>.weakToStrongObjects()
     var hooksInstalled = false
+    var webViewHookInstalled = false
     var hookedDelegateClasses = Set<ObjectIdentifier>()
     private var _filter = Filter.all
     private let poiLog = OSLog(subsystem: "apitrace", category: .pointsOfInterest)

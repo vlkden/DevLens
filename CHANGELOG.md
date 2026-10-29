@@ -7,6 +7,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 - `APITrace.Filter` and `APITrace.shared.filter`: hide requests with transport errors, HTTP 4xx/5xx, or from given hosts from the report and all exports. `snapshot()` stays unfiltered; `filteredSnapshot()` returns what the exports see. The report header shows `hidden by filter=N`.
+- `APITrace.WebViewOptions` and `APITrace.shared.webViewOptions`: choose what the WebView script does. `.resourceTiming` (default) is read-only; `.fetchAndXHRStatus` wraps `fetch`/XHR for status codes.
+- `isAttached(_:)` to check whether a web view carries the tracing script.
+- `start(autoAttachWebViews: true)` now installs the WebView hook even if an earlier `start()` passed `false`.
+
+### Changed
+- The WebView script no longer wraps `window.fetch` and `XMLHttpRequest` by default. Pages protected by anti-tamper or bot-detection scripts rejected the wrapped functions, which surfaced in apps as TLS or trust failures. Status codes for web requests now need `webViewOptions = .all`.
+- Auto-attach hooks `load(_:)`, `loadHTMLString(_:baseURL:)` and `loadFileURL(_:allowingReadAccessTo:)` instead of swizzling `initWithFrame:configuration:`. The initializer is in the ObjC `init` family and a Swift replacement cannot honour its ownership rules; the `load` methods are ordinary. Web views loaded only through `load(_:mimeType:characterEncodingName:baseURL:)` need a manual `attach(to:)`.
 
 ## [0.1.0] - 2026-10-29
 
